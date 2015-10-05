@@ -51,6 +51,10 @@
 extern "C" {
 #endif /* __cplusplus */
 
+/** @addtogroup highgui_c
+  @{
+  */
+
 /****************************************************************************************\
 *                                  Basic GUI functions                                   *
 \****************************************************************************************/
@@ -161,6 +165,7 @@ CVAPI(int) cvCreateTrackbar2( const char* trackbar_name, const char* window_name
 /* retrieve or set trackbar position */
 CVAPI(int) cvGetTrackbarPos( const char* trackbar_name, const char* window_name );
 CVAPI(void) cvSetTrackbarPos( const char* trackbar_name, const char* window_name, int pos );
+CVAPI(void) cvSetTrackbarMax(const char* trackbar_name, const char* window_name, int maxval);
 
 enum
 {
@@ -236,6 +241,8 @@ CVAPI(void) cvSetPostprocessFuncWin32_(const void* callback);
 #define cvSetPostprocessFuncWin32(callback) cvSetPostprocessFuncWin32_((const void*)(callback))
 
 #endif
+
+/** @} highgui_c */
 
 #ifdef __cplusplus
 }

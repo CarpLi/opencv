@@ -980,12 +980,12 @@ minMaxLoc_(const _Tp* src, size_t total, size_t startidx,
         for( size_t i = 0; i < total; i++ )
         {
             _Tp val = src[i];
-            if( minval > val )
+            if( minval > val || !minpos )
             {
                 minval = val;
                 minpos = startidx + i;
             }
-            if( maxval < val )
+            if( maxval < val || !maxpos )
             {
                 maxval = val;
                 maxpos = startidx + i;
@@ -997,12 +997,12 @@ minMaxLoc_(const _Tp* src, size_t total, size_t startidx,
         for( size_t i = 0; i < total; i++ )
         {
             _Tp val = src[i];
-            if( minval > val && mask[i] )
+            if( (minval > val || !minpos) && mask[i] )
             {
                 minval = val;
                 minpos = startidx + i;
             }
-            if( maxval < val && mask[i] )
+            if( (maxval < val || !maxpos) && mask[i] )
             {
                 maxval = val;
                 maxpos = startidx + i;
@@ -1049,8 +1049,8 @@ void minMaxLoc(const Mat& src, double* _minval, double* _maxval,
     size_t startidx = 1, total = planes[0].total();
     size_t i, nplanes = it.nplanes;
     int depth = src.depth();
-    double maxval = depth < CV_32F ? INT_MIN : depth == CV_32F ? -FLT_MAX : -DBL_MAX;
-    double minval = depth < CV_32F ? INT_MAX : depth == CV_32F ? FLT_MAX : DBL_MAX;
+    double minval = 0;
+    double maxval = 0;
     size_t maxidx = 0, minidx = 0;
 
     for( i = 0; i < nplanes; i++, ++it, startidx += total )
@@ -1092,9 +1092,6 @@ void minMaxLoc(const Mat& src, double* _minval, double* _maxval,
             CV_Assert(0);
         }
     }
-
-    if( minidx == 0 )
-        minval = maxval = 0;
 
     if( _maxval )
         *_maxval = maxval;
@@ -2998,6 +2995,12 @@ void printVersionInfo(bool useStdOut)
 
     std::string cpu_features;
 
+#if CV_POPCNT
+    if (checkHardwareSupport(CV_CPU_POPCNT)) cpu_features += " popcnt";
+#endif
+#if CV_MMX
+    if (checkHardwareSupport(CV_CPU_MMX)) cpu_features += " mmx";
+#endif
 #if CV_SSE
     if (checkHardwareSupport(CV_CPU_SSE)) cpu_features += " sse";
 #endif
@@ -3019,8 +3022,41 @@ void printVersionInfo(bool useStdOut)
 #if CV_AVX
     if (checkHardwareSupport(CV_CPU_AVX)) cpu_features += " avx";
 #endif
+#if CV_AVX2
+    if (checkHardwareSupport(CV_CPU_AVX2)) cpu_features += " avx2";
+#endif
+#if CV_FMA3
+    if (checkHardwareSupport(CV_CPU_FMA3)) cpu_features += " fma3";
+#endif
+#if CV_AVX_512F
+    if (checkHardwareSupport(CV_CPU_AVX_512F) cpu_features += " avx-512f";
+#endif
+#if CV_AVX_512BW
+    if (checkHardwareSupport(CV_CPU_AVX_512BW) cpu_features += " avx-512bw";
+#endif
+#if CV_AVX_512CD
+    if (checkHardwareSupport(CV_CPU_AVX_512CD) cpu_features += " avx-512cd";
+#endif
+#if CV_AVX_512DQ
+    if (checkHardwareSupport(CV_CPU_AVX_512DQ) cpu_features += " avx-512dq";
+#endif
+#if CV_AVX_512ER
+    if (checkHardwareSupport(CV_CPU_AVX_512ER) cpu_features += " avx-512er";
+#endif
+#if CV_AVX_512IFMA512
+    if (checkHardwareSupport(CV_CPU_AVX_512IFMA512) cpu_features += " avx-512ifma512";
+#endif
+#if CV_AVX_512PF
+    if (checkHardwareSupport(CV_CPU_AVX_512PF) cpu_features += " avx-512pf";
+#endif
+#if CV_AVX_512VBMI
+    if (checkHardwareSupport(CV_CPU_AVX_512VBMI) cpu_features += " avx-512vbmi";
+#endif
+#if CV_AVX_512VL
+    if (checkHardwareSupport(CV_CPU_AVX_512VL) cpu_features += " avx-512vl";
+#endif
 #if CV_NEON
-    cpu_features += " neon"; // NEON is currently not checked at runtime
+    if (checkHardwareSupport(CV_CPU_NEON)) cpu_features += " neon";
 #endif
 
     cpu_features.erase(0, 1); // erase initial space
@@ -3029,7 +3065,7 @@ void printVersionInfo(bool useStdOut)
     if (useStdOut) std::cout << "CPU features: " << cpu_features << std::endl;
 
 #ifdef HAVE_TEGRA_OPTIMIZATION
-    const char * tegra_optimization = tegra::isDeviceSupported() ? "enabled" : "disabled";
+    const char * tegra_optimization = tegra::useTegra() && tegra::isDeviceSupported() ? "enabled" : "disabled";
     ::testing::Test::RecordProperty("cv_tegra_optimization", tegra_optimization);
     if (useStdOut) std::cout << "Tegra optimization: " << tegra_optimization << std::endl;
 #endif

@@ -303,7 +303,10 @@ struct Ptr
     @note It is often easier to use makePtr instead.
      */
     template<typename Y>
-    explicit Ptr(Y* p);
+#ifdef DISABLE_OPENCV_24_COMPATIBILITY
+    explicit
+#endif
+    Ptr(Y* p);
 
     /** @overload
     @param d Deleter to use for the owned pointer.
@@ -407,6 +410,11 @@ struct Ptr
     /** Ditto for dynamic_cast. */
     template<typename Y>
     Ptr<Y> dynamicCast() const;
+
+#ifdef CV_CXX_MOVE_SEMANTICS
+    Ptr(Ptr&& o);
+    Ptr& operator = (Ptr&& o);
+#endif
 
 private:
     detail::PtrOwner* owner;
@@ -893,6 +901,7 @@ size_t String::find_first_of(const String& str, size_t pos) const
 inline
 size_t String::find_first_of(const char* s, size_t pos) const
 {
+    if (len_ == 0) return npos;
     if (pos >= len_ || !s[0]) return npos;
     const char* lmax = cstr_ + len_;
     for (const char* i = cstr_ + pos; i < lmax; ++i)
@@ -907,6 +916,7 @@ size_t String::find_first_of(const char* s, size_t pos) const
 inline
 size_t String::find_last_of(const char* s, size_t pos, size_t n) const
 {
+    if (len_ == 0) return npos;
     if (pos >= len_) pos = len_ - 1;
     for (const char* i = cstr_ + pos; i >= cstr_; --i)
     {
@@ -932,6 +942,7 @@ size_t String::find_last_of(const String& str, size_t pos) const
 inline
 size_t String::find_last_of(const char* s, size_t pos) const
 {
+    if (len_ == 0) return npos;
     if (pos >= len_) pos = len_ - 1;
     for (const char* i = cstr_ + pos; i >= cstr_; --i)
     {
@@ -1037,9 +1048,11 @@ static inline bool operator>= (const String& lhs, const char*   rhs) { return lh
 
 #ifndef OPENCV_NOSTL_TRANSITIONAL
 namespace std
+{
+    static inline void swap(cv::String& a, cv::String& b) { a.swap(b); }
+}
 #else
 namespace cv
-#endif
 {
     template<> inline
     void swap<cv::String>(cv::String& a, cv::String& b)
@@ -1047,6 +1060,7 @@ namespace cv
         a.swap(b);
     }
 }
+#endif
 
 #include "opencv2/core/ptr.inl.hpp"
 

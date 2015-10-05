@@ -123,7 +123,7 @@ public:
     virtual bool open( int type, const char* filename );
     virtual void close();
 
-    virtual double getProperty(int);
+    virtual double getProperty(int) const;
     virtual bool setProperty(int, double);
     virtual bool grabFrame();
     virtual IplImage* retrieveFrame(int);
@@ -146,7 +146,6 @@ protected:
     GstElement*   sink;
 #if GST_VERSION_MAJOR > 0
     GstSample*    sample;
-    GstMapInfo*   info;
 #endif
     GstBuffer*    buffer;
     GstCaps*      caps;
@@ -169,7 +168,6 @@ void CvCapture_GStreamer::init()
     sink = NULL;
 #if GST_VERSION_MAJOR > 0
     sample = NULL;
-    info = new GstMapInfo;
 #endif
     buffer = NULL;
     caps = NULL;
@@ -318,17 +316,16 @@ IplImage * CvCapture_GStreamer::retrieveFrame(int)
 #if GST_VERSION_MAJOR == 0
     frame->imageData = (char *)GST_BUFFER_DATA(buffer);
 #else
-    // the data ptr in GstMapInfo is only valid throughout the mapifo objects life.
-    // TODO: check if reusing the mapinfo object is ok.
-
-    gboolean success = gst_buffer_map(buffer,info, (GstMapFlags)GST_MAP_READ);
+    // info.data ptr is valid until next grabFrame where the associated sample is unref'd
+    GstMapInfo info = GstMapInfo();
+    gboolean success = gst_buffer_map(buffer,&info, (GstMapFlags)GST_MAP_READ);
     if (!success){
         //something weird went wrong here. abort. abort.
         //fprintf(stderr,"GStreamer: unable to map buffer");
         return 0;
     }
-    frame->imageData = (char*)info->data;
-    gst_buffer_unmap(buffer,info);
+    frame->imageData = (char*)info.data;
+    gst_buffer_unmap(buffer,&info);
 #endif
 
     return frame;
@@ -525,7 +522,7 @@ void CvCapture_GStreamer::newPad(GstElement * /*elem*/,
  * \brief CvCapture_GStreamer::open Open the given file with gstreamer
  * \param type CvCapture type. One of CV_CAP_GSTREAMER_*
  * \param filename Filename to open in case of CV_CAP_GSTREAMER_FILE
- * \return boolean. Specifies if opening was succesful.
+ * \return boolean. Specifies if opening was successful.
  *
  * In case of CV_CAP_GSTREAMER_V4L(2), a pipelin is constructed as follows:
  *    v4l2src ! autoconvert ! appsink
@@ -574,7 +571,7 @@ bool CvCapture_GStreamer::open( int type, const char* filename )
             return false;
         }
         g_object_unref(G_OBJECT(testfac));
-        filename = "v4lsrc ! "COLOR_ELEM" ! appsink";
+        filename = "v4lsrc ! " COLOR_ELEM " ! appsink";
     }
     if (type == CV_CAP_GSTREAMER_V4L2){
         testfac = gst_element_factory_find("v4l2src");
@@ -582,7 +579,7 @@ bool CvCapture_GStreamer::open( int type, const char* filename )
             return false;
         }
         g_object_unref(G_OBJECT(testfac));
-        filename = "v4l2src ! "COLOR_ELEM" ! appsink";
+        filename = "v4l2src ! " COLOR_ELEM " ! appsink";
     }
 
 
@@ -838,7 +835,7 @@ bool CvCapture_GStreamer::open( int type, const char* filename )
  * For frame-based properties, we use the caps of the lasst receivef sample. This means that some properties
  * are not available until a first frame was received
  */
-double CvCapture_GStreamer::getProperty( int propId )
+double CvCapture_GStreamer::getProperty( int propId ) const
 {
     GstFormat format;
     gint64 value;
